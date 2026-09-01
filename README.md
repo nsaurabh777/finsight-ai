@@ -89,7 +89,7 @@ backend (`src/api.py` → `src/crew.py`), two different triggers.
 | 2 | RAG: ticker resolver + knowledge/news store | ✅ implemented |
 | 3 | LLM-as-judge eval harness | ✅ baseline captured (below) |
 | 4 | FastAPI + Streamlit | ✅ implemented |
-| 5 | n8n scheduled brief | ✅ workflow + Docker Compose ready; live delivery not yet verified |
+| 5 | n8n scheduled brief | ✅ implemented (Docker Compose + workflow; verified delivering to Slack) |
 | 6 | OpenClaw on-demand chat | 🟡 skeleton (schema unverified) |
 | 7 | Polish, Docker Compose | ⬜ not started |
 

@@ -256,7 +256,7 @@ Do not skip ahead to Phase 5/6 before Phases 1–3 are solid — the automation/
 - [ ] The resulting report cites at least one retrieved knowledge-store passage, not just raw tool output — *partial: works when the store holds relevant news; the seed store is thin so retrieval often (correctly) reports "evidence unavailable". Better news ingestion is Phase 7 polish.*
 - [x] `eval/run_eval.py` runs clean and produces a scored report across all test queries — *17 queries, baseline recorded in README (faithfulness 4.41 / relevance 4.88 / graceful-failure 100%)*
 - [x] Streamlit app runs locally and produces a report end-to-end — *`app/streamlit_app.py` → FastAPI `/research`, confirmed 2026-09-02*
-- [ ] n8n workflow successfully delivers a scheduled report to at least one channel
+- [x] n8n workflow successfully delivers a scheduled report to at least one channel — *`automation/n8n/` — cron → watchlist → `/research` → compiled Slack brief; verified delivering*
 - [ ] OpenClaw skill successfully answers an on-demand chat query
 - [x] README documents the n8n-vs-OpenClaw division of labor explicitly
 - [x] No hardcoded API keys anywhere in committed code (use `.env`, and `.env` is in `.gitignore`)
@@ -290,8 +290,8 @@ Recorded per Section 11 ("flag it and propose an alternative rather than silentl
 | 11 | `retrieve_knowledge` returns top-k passages | Drops hits below `KNOWLEDGE_MIN_RELEVANCE` (0.30 cosine); if none survive, returns "evidence unavailable" | The thin seed store returns top-k hits at ~0.1 similarity (unrelated articles). Handing those to a small model as "the news" stalls it trying to relate an unrelated article to the question. |
 | 12 | `max_iter` left at CrewAI default (25) | `AGENT_MAX_ITER` (8) on every agent; `Crew(max_rpm=…)` Groq-only; optional `AGENT_MAX_EXECUTION_TIME` wall-clock ceiling | 25 tool-loop iterations per agent × rate-limit backoff = runs that appear hung for many minutes. |
 
-**Deferred:** Phase 6 OpenClaw (skill schema still unverified — see `automation/openclaw/finsight_skill/README.md`).
+**Remaining:** Phase 6 OpenClaw (skill schema still unverified — see `automation/openclaw/finsight_skill/README.md`), Phase 7 polish.
 
 **Phase 4 (done):** `src/api.py` exposes `POST /research` (query → report + `ticker` / `in_coverage` / `provider` / `model` / `elapsed_seconds`) and `GET /health`; `app/streamlit_app.py` is a thin UI that calls the API, never the crew. `src/crew.py::research()` returns the structured `ResearchResult`; `run_research()` is the report-string wrapper kept for the CLI and eval.
 
-**Phase 5 (built, live delivery unverified):** `automation/n8n/docker-compose.yml` self-hosts n8n; `daily_brief_workflow.json` is a cron → watchlist → `/research` per query → one compiled Slack message. Watchlist and Slack webhook are env-configured (`automation/n8n/.env`). Failed `/research` calls degrade to an error line in the brief rather than aborting it. The DoD checkbox stays open until a scheduled run actually posts to Slack — needs a live webhook + running n8n.
+**Phase 5 (done):** `automation/n8n/docker-compose.yml` self-hosts n8n; `daily_brief_workflow.json` is a cron → watchlist → `/research` per query → one compiled Slack message. Watchlist and Slack webhook are env-configured (`automation/n8n/.env`); needs `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` (set in the compose file) for the Code nodes to read `$env`. Failed `/research` calls degrade to an error line in the brief rather than aborting it. Verified delivering to Slack.
