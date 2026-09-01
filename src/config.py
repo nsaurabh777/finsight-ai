@@ -37,6 +37,14 @@ JUDGE_LLM_PROVIDER = (os.getenv("JUDGE_LLM_PROVIDER") or LLM_PROVIDER).lower()
 # Deterministic outputs everywhere (research + judging).
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 
+# Groq's free tier is capped at 8000 tokens/minute; a multi-agent run blows
+# through that in bursts and gets HTTP 429s ("try again in Ns"). LiteLLM honours
+# the Retry-After and backs off when num_retries > 0, which lets the per-minute
+# window refill instead of aborting the whole crew. Bump this (or move to Groq's
+# Dev tier) if runs still fail. Also cap response length to spend fewer tokens.
+LLM_NUM_RETRIES = int(os.getenv("LLM_NUM_RETRIES", "6"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+
 # --- Paths --------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 CHROMA_PERSIST_DIR = Path(os.getenv("CHROMA_PERSIST_DIR", BASE_DIR / "data" / "chroma"))
@@ -105,6 +113,10 @@ def _build_llm(provider: str):
             model=f"groq/{GROQ_MODEL}",
             api_key=GROQ_API_KEY,
             temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+            # Unknown kwargs are folded into additional_params and forwarded to
+            # litellm.completion(), which is where num_retries takes effect.
+            num_retries=LLM_NUM_RETRIES,
         )
 
     if provider == "ollama":
