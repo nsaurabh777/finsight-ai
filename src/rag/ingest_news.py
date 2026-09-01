@@ -14,6 +14,7 @@ Run:
 """
 import argparse
 
+from src.rag.text_utils import clean_passage
 from src.rag.vectorstore import VectorStore
 from src.tools.market_data import fetch_stock_news_raw
 
@@ -53,7 +54,8 @@ def ingest(tickers: list[str], limit_per_ticker: int = 10) -> dict[str, int]:
             store.add(
                 ids=[cid for cid, _ in fresh],
                 documents=[
-                    f'{a["title"]}. {a.get("summary", "")}'.strip() for _, a in fresh
+                    clean_passage(f'{a["title"]}. {a.get("summary", "")}')
+                    for _, a in fresh
                 ],
                 metadatas=[_clean_meta(a) for _, a in fresh],
             )

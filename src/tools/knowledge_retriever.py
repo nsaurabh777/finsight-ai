@@ -4,6 +4,7 @@ src/rag/ingest_news.py). Agents call this instead of reading a raw dumped
 news list, so qualitative claims in the final report are retrieval-grounded
 and citable back to a source URL.
 """
+from src.rag.text_utils import clean_passage
 from src.rag.vectorstore import VectorStore
 
 try:
@@ -23,11 +24,13 @@ def _get_store() -> VectorStore:
     return _store
 
 
-def retrieve(query: str, ticker: str, top_k: int = 5) -> str:
+def retrieve(query: str, ticker: str, top_k: int = 4) -> str:
     """Plain function (no CrewAI wrapper) for eval/tests.
 
     Scopes retrieval to one ticker and formats each hit with source
-    attribution so downstream text can cite it.
+    attribution so downstream text can cite it. Passage text is cleaned and
+    truncated (clean_passage) so a handful of hits can't balloon a local
+    model's context — the source URL is the pointer to the full article.
     """
     store = _get_store()
     if store.count() == 0:
@@ -42,8 +45,9 @@ def retrieve(query: str, ticker: str, top_k: int = 5) -> str:
     lines = []
     for r in results:
         meta = r["metadata"]
+        passage = clean_passage(r["document"]) or clean_passage(meta.get("title", ""))
         lines.append(
-            f'- "{r["document"].strip()}"\n'
+            f'- "{passage}"\n'
             f'  (source: {meta.get("publisher", "unknown")}, '
             f'{meta.get("published", "unknown date")}, '
             f'{meta.get("url", "no url")})'
@@ -52,7 +56,7 @@ def retrieve(query: str, ticker: str, top_k: int = 5) -> str:
 
 
 @tool("retrieve_knowledge")
-def retrieve_knowledge(query: str, ticker: str, top_k: int = 5) -> str:
+def retrieve_knowledge(query: str, ticker: str, top_k: int = 4) -> str:
     """Retrieves the most relevant grounding passages (news now; company
     filings / investor presentations later) for a question, scoped to one
     ticker.
@@ -61,7 +65,7 @@ def retrieve_knowledge(query: str, ticker: str, top_k: int = 5) -> str:
     - query: what you're trying to find out (e.g. "recent margin commentary",
       "why did the stock move this week").
     - ticker: the resolved '.NS' ticker to scope retrieval to (e.g. 'KPITTECH.NS').
-    - top_k: how many passages to retrieve (default 5).
+    - top_k: how many passages to retrieve (default 4).
 
     Returns passages each with (publisher, date, url) attribution. Cite these
     in your output rather than asserting claims from general knowledge. If it
