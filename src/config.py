@@ -29,7 +29,11 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 # crewai[litellm] extra installed.
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+# The crew is tool-call heavy; a weak local model loops or emits malformed
+# calls. qwen2.5:7b handles it on a 16GB Mac. Also raise the Ollama server
+# context (default 4096 truncates CrewAI's long prompts and causes the loops):
+# run `OLLAMA_CONTEXT_LENGTH=16384 ollama serve`. See .env.example.
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
 # Judge for eval/ — defaults to the same provider/model as generation.
 JUDGE_LLM_PROVIDER = (os.getenv("JUDGE_LLM_PROVIDER") or LLM_PROVIDER).lower()
@@ -44,6 +48,16 @@ LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 # Dev tier) if runs still fail. Also cap response length to spend fewer tokens.
 LLM_NUM_RETRIES = int(os.getenv("LLM_NUM_RETRIES", "6"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+
+# CrewAI agents default to max_iter=25 tool-loop iterations before forcing a
+# final answer. A small model on the ReAct loop (Groq gpt-oss) sometimes fails
+# to stop when a tool returns a sentinel like "TICKER_NOT_FOUND: Zomato" and
+# keeps re-calling tools until it hits that wall — 25 slow, rate-limited
+# iterations per agent. Cap it: the researcher needs ~2 tool calls, the
+# analyst ~4.
+AGENT_MAX_ITER = int(os.getenv("AGENT_MAX_ITER", "8"))
+# Throttle the whole crew under Groq's 30 requests/minute free-tier ceiling.
+CREW_MAX_RPM = int(os.getenv("CREW_MAX_RPM", "25"))
 
 # --- Paths --------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent

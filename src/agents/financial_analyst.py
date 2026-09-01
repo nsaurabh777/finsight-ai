@@ -1,8 +1,9 @@
 from crewai import Agent
 
-from src.config import get_llm
+from src.config import AGENT_MAX_ITER, get_llm
 from src.tools.knowledge_retriever import retrieve_knowledge
 from src.tools.market_data import (
+    get_basic_stock_info,
     get_fundamental_analysis,
     get_stock_risk_assessment,
     get_technical_analysis,
@@ -24,6 +25,7 @@ def build_financial_analyst() -> Agent:
             "tool-computed number — never asserts something it can't point to."
         ),
         tools=[
+            get_basic_stock_info,
             get_fundamental_analysis,
             get_stock_risk_assessment,
             get_technical_analysis,
@@ -32,4 +34,5 @@ def build_financial_analyst() -> Agent:
         llm=get_llm(),
         verbose=True,
         allow_delegation=False,
+        max_iter=AGENT_MAX_ITER,
     )
