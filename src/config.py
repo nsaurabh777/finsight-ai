@@ -57,7 +57,15 @@ LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 # analyst ~4.
 AGENT_MAX_ITER = int(os.getenv("AGENT_MAX_ITER", "8"))
 # Throttle the whole crew under Groq's 30 requests/minute free-tier ceiling.
+# Ignored for Ollama (local, no rate limit) — see src/crew.py.
 CREW_MAX_RPM = int(os.getenv("CREW_MAX_RPM", "25"))
+# Hard per-agent wall-clock ceiling in seconds. 0 = disabled (the default —
+# a legitimate local run on a small model can genuinely take 10+ min). Set it
+# (e.g. 900) if an agent hangs so the run aborts and moves on instead of
+# stalling forever. A hang usually means Ollama's context is too small and
+# CrewAI is looping on conversation summarisation — raise OLLAMA_CONTEXT_LENGTH
+# first.
+AGENT_MAX_EXECUTION_TIME = int(os.getenv("AGENT_MAX_EXECUTION_TIME", "0"))
 
 # --- Paths --------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -141,6 +149,14 @@ def _build_llm(provider: str):
         )
 
     raise ValueError(f"Unknown LLM provider: {provider!r} (expected 'groq' or 'ollama')")
+
+
+def agent_runtime_kwargs() -> dict:
+    """Shared Agent(...) runtime knobs, so the agent builders stay consistent."""
+    kwargs = {"max_iter": AGENT_MAX_ITER}
+    if AGENT_MAX_EXECUTION_TIME > 0:
+        kwargs["max_execution_time"] = AGENT_MAX_EXECUTION_TIME
+    return kwargs
 
 
 def get_llm():

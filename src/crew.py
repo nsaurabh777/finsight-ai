@@ -28,10 +28,14 @@ from src.agents.financial_analyst import build_financial_analyst
 from src.agents.news_analyst import build_news_analyst
 from src.agents.report_writer import build_report_writer
 from src.agents.stock_researcher import build_stock_researcher
-from src.config import CREW_MAX_RPM, DISCLAIMER
+from src.config import CREW_MAX_RPM, DISCLAIMER, LLM_PROVIDER
 from src.tools.ticker_resolver import NOT_FOUND_PREFIX, resolve
 
 _NS_TICKER_RE = re.compile(r"\b([A-Z][A-Z0-9.&\-]*\.NS)\b")
+
+# Only Groq has a request-rate ceiling worth throttling for. Ollama is local
+# and rate-limiting it just adds dead time between already-slow calls.
+_CREW_MAX_RPM = CREW_MAX_RPM if LLM_PROVIDER == "groq" else None
 
 
 def build_resolver_crew() -> Crew:
@@ -58,7 +62,7 @@ def build_resolver_crew() -> Crew:
         tasks=[resolve_task],
         process=Process.sequential,
         verbose=True,
-        max_rpm=CREW_MAX_RPM,
+        max_rpm=_CREW_MAX_RPM,
     )
 
 
@@ -125,7 +129,7 @@ def build_analysis_crew() -> Crew:
         tasks=[analysis_task, news_task, report_task],
         process=Process.sequential,
         verbose=True,
-        max_rpm=CREW_MAX_RPM,
+        max_rpm=_CREW_MAX_RPM,
     )
 
 

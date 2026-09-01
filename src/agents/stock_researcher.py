@@ -1,6 +1,6 @@
 from crewai import Agent
 
-from src.config import AGENT_MAX_ITER, get_llm
+from src.config import agent_runtime_kwargs, get_llm
 from src.tools.ticker_resolver import resolve_ticker
 
 
@@ -24,5 +24,5 @@ def build_stock_researcher() -> Agent:
         llm=get_llm(),
         verbose=True,
         allow_delegation=False,
-        max_iter=AGENT_MAX_ITER,
+        **agent_runtime_kwargs(),
     )

@@ -1,6 +1,6 @@
 from crewai import Agent
 
-from src.config import AGENT_MAX_ITER, get_llm
+from src.config import agent_runtime_kwargs, get_llm
 from src.tools.knowledge_retriever import retrieve_knowledge
 from src.tools.market_data import (
     get_basic_stock_info,
@@ -34,5 +34,5 @@ def build_financial_analyst() -> Agent:
         llm=get_llm(),
         verbose=True,
         allow_delegation=False,
-        max_iter=AGENT_MAX_ITER,
+        **agent_runtime_kwargs(),
     )
