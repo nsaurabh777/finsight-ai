@@ -1,0 +1,17 @@
+[
+  {"id": "q1", "category": "simple_lookup", "query": "What is KPIT Technologies' current price?"},
+  {"id": "q2", "category": "simple_lookup", "query": "Give me basic info on Reliance Industries."},
+  {"id": "q3", "category": "ambiguous_name", "query": "Is HDFC a good stock?"},
+  {"id": "q4", "category": "ambiguous_name", "query": "Tell me about Bajaj."},
+  {"id": "q5", "category": "fundamentals_focus", "query": "Is TCS overvalued right now based on its fundamentals?"},
+  {"id": "q6", "category": "fundamentals_focus", "query": "What is Infosys' debt-to-equity ratio and is it a concern?"},
+  {"id": "q7", "category": "technicals_focus", "query": "Is KPIT Technologies in a bullish or bearish trend right now?"},
+  {"id": "q8", "category": "technicals_focus", "query": "What does the RSI say about Tata Motors right now?"},
+  {"id": "q9", "category": "risk_focus", "query": "How risky is Adani Enterprises as a long-term hold?"},
+  {"id": "q10", "category": "news_grounding", "query": "What recent news might affect KPIT Technologies' stock price?"},
+  {"id": "q11", "category": "long_term_recommendation", "query": "Is KPIT Technologies a good stock for long term?"},
+  {"id": "q12", "category": "risk_averse_persona", "query": "Is Apple a safe long-term bet for a risk-averse individual?"},
+  {"id": "q13", "category": "novice_persona", "query": "I'm new to investing — should I buy Reliance shares? Explain simply."},
+  {"id": "q14", "category": "not_in_store", "query": "Is Zomato a good stock to buy?"},
+  {"id": "q15", "category": "not_in_store", "query": "Should I invest in a company called Xyzcorp?"}
+]
