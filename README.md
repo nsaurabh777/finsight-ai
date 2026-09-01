@@ -11,7 +11,7 @@ the PRD are recorded in [PRD.md § 12](./PRD.md#12-implementation-not--deviation
 ## Quickstart
 
 ```bash
-python -m virtualenv .venv          # or: python -m venv .venv
+python -m venv .venv          # or: python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                # then edit .env — see below
