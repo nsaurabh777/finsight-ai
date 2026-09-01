@@ -29,7 +29,7 @@ python -m src.crew "Is KPIT Technologies a good long-term stock?"
 | `LLM_PROVIDER` | Needs | When |
 |---|---|---|
 | `groq` (default) | free `GROQ_API_KEY` from [console.groq.com/keys](https://console.groq.com/keys) (no card) | no local GPU / low-RAM host |
-| `ollama` | an Ollama server at `OLLAMA_BASE_URL` running `OLLAMA_MODEL` | you have the hardware; want fully offline |
+| `ollama` | an Ollama server at `OLLAMA_BASE_URL` running `OLLAMA_MODEL` (a tool-calling model — `qwen2.5:7b`; start the server with `OLLAMA_CONTEXT_LENGTH=16384` or the crew stalls on context summarisation) | you have the hardware; want fully offline |
 
 The rest of the stack (embeddings, vector store, market data) is local and free
 regardless of which LLM you pick.
@@ -42,6 +42,20 @@ python -m scripts.smoke_offline
 
 Exercises the vector store, ticker resolution (hits + graceful-failure misses),
 the yfinance tools, and news ingest/retrieval.
+
+### Evaluation
+
+```bash
+python -m eval.run_eval                 # 17 queries through the full crew + LLM judge
+python -m eval.run_eval --limit 3       # smoke test
+python -m scripts.inspect_eval          # per-query breakdown of the latest run
+python -m scripts.inspect_knowledge RELIANCE.NS   # what the news store returns for a ticker
+```
+
+Each query runs the full pipeline; a judge LLM scores the report against
+[`eval/rubric.md`](./eval/rubric.md). Results land in `eval/results/`
+(gitignored). Graceful-failure and ticker-accuracy on out-of-universe queries
+are checked deterministically, not left to the judge.
 
 ## Why n8n *and* OpenClaw?
 
@@ -56,8 +70,25 @@ now. Same backend (`src/api.py` → `src/crew.py`), two different triggers.
 |---|---|---|
 | 1 | Core CrewAI pipeline + yfinance tools | ✅ implemented |
 | 2 | RAG: ticker resolver + knowledge/news store | ✅ implemented |
-| 3 | LLM-as-judge eval harness | ✅ implemented (baseline run pending) |
+| 3 | LLM-as-judge eval harness | ✅ baseline captured (below) |
 | 4 | FastAPI + Streamlit | 🟡 skeleton |
 | 5 | n8n scheduled brief | 🟡 skeleton |
 | 6 | OpenClaw on-demand chat | 🟡 skeleton (schema unverified) |
 | 7 | Polish, Docker Compose | ⬜ not started |
+
+### Eval baseline
+
+17 test queries, full pipeline, `qwen2.5:7b` local via Ollama for both
+generation and judging (`eval/run_eval.py`, run 2026-09-02):
+
+| Metric | Score |
+|---|---|
+| Faithfulness (mean, 1–5) | 4.41 |
+| Relevance (mean, 1–5) | 4.88 |
+| Ticker accuracy (pass) | 94.1% |
+| Graceful failure on out-of-universe queries (pass) | 100% |
+| Disclaimer present (pass) | 100% |
+
+The single ticker-accuracy miss was a test-data error (a query asked about a
+non-NSE listing under a persona category; the pipeline correctly refused).
+Fixed in `eval/test_queries.json` for the next run.
