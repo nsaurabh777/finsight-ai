@@ -1,5 +1,8 @@
 # --- Agent orchestration ---
-crewai>=0.100.0
+# [litellm] extra is required: CrewAI 1.x has no native Groq provider and its
+# native OpenAI provider ignores a custom base_url (crewAI issue #5139), so
+# Groq is reached via LiteLLM with a "groq/" model prefix (see src/config.py).
+crewai[litellm]>=1.0.0
 
 # --- LLM clients (both free options; only one is needed at runtime) ---
 # CrewAI talks to both via its built-in LLM class (litellm under the hood),

@@ -18,11 +18,15 @@ load_dotenv()
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-# Groq exposes an OpenAI-compatible API. CrewAI 1.x has no native "groq"
-# provider (and we don't install the heavy litellm fallback), so we reach Groq
-# through CrewAI's native OpenAI provider pointed at this base URL.
-GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+# Groq deprecated llama-3.3-70b-versatile / llama-3.1-8b-instant for the free
+# and developer tiers on 2026-06-17. openai/gpt-oss-120b is Groq's recommended
+# replacement. See https://console.groq.com/docs/deprecations
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+# CrewAI 1.x has no native "groq" provider. Its native OpenAI provider ignores
+# a custom base_url (crewAI issue #5139, wontfix), so pointing it at Groq's
+# OpenAI-compatible endpoint silently falls back to api.openai.com. Instead we
+# route through LiteLLM with a "groq/" model prefix, which needs the
+# crewai[litellm] extra installed.
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
@@ -65,11 +69,9 @@ DISCLAIMER = (
 def _build_llm(provider: str):
     """Return a crewai.LLM configured for `provider`.
 
-    CrewAI 1.x ships native provider clients (no litellm needed for these):
+    Providers:
       - Ollama  -> native "ollama" provider, model "ollama/<name>"
-      - Groq    -> no native provider, but Groq is OpenAI-compatible, so we use
-                   the native OpenAI provider with custom_openai=True pointed at
-                   GROQ_BASE_URL.
+      - Groq    -> via LiteLLM, model "groq/<name>" (needs crewai[litellm])
     """
     from crewai import LLM
 
@@ -80,9 +82,7 @@ def _build_llm(provider: str):
                 "(free key at https://console.groq.com/keys)."
             )
         return LLM(
-            model=GROQ_MODEL,
-            custom_openai=True,
-            base_url=GROQ_BASE_URL,
+            model=f"groq/{GROQ_MODEL}",
             api_key=GROQ_API_KEY,
             temperature=LLM_TEMPERATURE,
         )
