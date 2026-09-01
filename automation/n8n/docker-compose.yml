@@ -1,0 +1,37 @@
+# Self-hosted n8n for the FinSight daily brief (PRD Phase 5.1).
+# NOT n8n Cloud — this runs locally / on your own box.
+#
+#   cd automation/n8n
+#   cp .env.example .env      # then fill in SLACK_WEBHOOK_URL
+#   docker compose up -d
+#   open http://localhost:5678
+#
+# The FinSight API is expected to be running on the *host* (uvicorn src.api:app
+# --port 8000). n8n reaches it at http://host.docker.internal:8000 — the
+# extra_hosts line below makes that name resolve on Linux too (it is automatic
+# on Docker Desktop for Mac/Windows).
+
+services:
+  n8n:
+    # Pin to a specific tag for reproducibility:
+    # https://hub.docker.com/r/n8nio/n8n/tags
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Asia/Kolkata}
+      - TZ=${GENERIC_TIMEZONE:-Asia/Kolkata}
+      # Consumed by the daily-brief workflow (n8n exposes these as $env.*):
+      - FINSIGHT_API_URL=${FINSIGHT_API_URL:-http://host.docker.internal:8000}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - FINSIGHT_WATCHLIST=${FINSIGHT_WATCHLIST:-}
+      # Quiet the “permissions” notice on the bind-mounted config file:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  n8n_data:

@@ -76,9 +76,10 @@ are checked deterministically, not left to the judge.
 ## Why n8n *and* OpenClaw?
 
 They are not redundant. **n8n** owns scheduled automation — a cron job that runs
-the pipeline against a watchlist and pushes a daily brief. **OpenClaw** owns
-on-demand conversational access — ask a question in chat, get an answer right
-now. Same backend (`src/api.py` → `src/crew.py`), two different triggers.
+the pipeline against a watchlist and pushes a daily brief
+([`automation/n8n/`](./automation/n8n/)). **OpenClaw** owns on-demand
+conversational access — ask a question in chat, get an answer right now. Same
+backend (`src/api.py` → `src/crew.py`), two different triggers.
 
 ## Status
 
@@ -88,7 +89,7 @@ now. Same backend (`src/api.py` → `src/crew.py`), two different triggers.
 | 2 | RAG: ticker resolver + knowledge/news store | ✅ implemented |
 | 3 | LLM-as-judge eval harness | ✅ baseline captured (below) |
 | 4 | FastAPI + Streamlit | ✅ implemented |
-| 5 | n8n scheduled brief | 🟡 skeleton |
+| 5 | n8n scheduled brief | ✅ workflow + Docker Compose ready; live delivery not yet verified |
 | 6 | OpenClaw on-demand chat | 🟡 skeleton (schema unverified) |
 | 7 | Polish, Docker Compose | ⬜ not started |
 
