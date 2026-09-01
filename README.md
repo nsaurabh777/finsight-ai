@@ -24,7 +24,7 @@ python -m src.rag.ingest_news --tickers KPITTECH.NS,RELIANCE.NS
 python -m src.crew "Is KPIT Technologies a good long-term stock?"
 ```
 
-### API + web UI (Phase 4)
+### API + web UI
 
 ```bash
 # terminal 1 — the backend (all interfaces call this, never the crew directly)
@@ -36,7 +36,9 @@ uvicorn src.api:app --port 8000
 streamlit run app/streamlit_app.py
 ```
 
-Point the UI at a non-local API with `FINSIGHT_API_URL` in `.env`.
+The Streamlit page takes a question, calls `/research`, and renders the
+markdown report plus the resolved ticker, in-coverage flag, and elapsed time.
+Point it at a non-local backend with `FINSIGHT_API_URL` in `.env`.
 
 ### Choosing an LLM (`.env`)
 

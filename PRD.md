@@ -252,15 +252,15 @@ Do not skip ahead to Phase 5/6 before Phases 1–3 are solid — the automation/
 
 ## 10. Definition of done (v1)
 
-- [ ] A query like "Is KPIT Technologies a good long-term stock?" resolves the correct ticker in one deterministic call (no guessing loop)
-- [ ] The resulting report cites at least one retrieved knowledge-store passage, not just raw tool output
-- [ ] `eval/run_eval.py` runs clean and produces a scored report across all test queries
-- [ ] Streamlit app runs locally and produces a report end-to-end
+- [x] A query like "Is KPIT Technologies a good long-term stock?" resolves the correct ticker in one deterministic call (no guessing loop)
+- [ ] The resulting report cites at least one retrieved knowledge-store passage, not just raw tool output — *partial: works when the store holds relevant news; the seed store is thin so retrieval often (correctly) reports "evidence unavailable". Better news ingestion is Phase 7 polish.*
+- [x] `eval/run_eval.py` runs clean and produces a scored report across all test queries — *17 queries, baseline recorded in README (faithfulness 4.41 / relevance 4.88 / graceful-failure 100%)*
+- [x] Streamlit app runs locally and produces a report end-to-end — *`app/streamlit_app.py` → FastAPI `/research`, confirmed 2026-09-02*
 - [ ] n8n workflow successfully delivers a scheduled report to at least one channel
 - [ ] OpenClaw skill successfully answers an on-demand chat query
-- [ ] README documents the n8n-vs-OpenClaw division of labor explicitly
-- [ ] No hardcoded API keys anywhere in committed code (use `.env`, and `.env` is in `.gitignore`)
-- [ ] Every generated report includes the non-financial-advice disclaimer
+- [x] README documents the n8n-vs-OpenClaw division of labor explicitly
+- [x] No hardcoded API keys anywhere in committed code (use `.env`, and `.env` is in `.gitignore`)
+- [x] Every generated report includes the non-financial-advice disclaimer — *enforced in `src/crew.py`, 100% in eval*
 
 ## 11. Notes for Claude Code
 
@@ -279,11 +279,17 @@ Recorded per Section 11 ("flag it and propose an alternative rather than silentl
 |---|---|---|---|
 | 1 | LLM default: Ollama `llama3.1:8b`, Groq as fallback | **Groq free tier is the default**; Ollama fully supported via `LLM_PROVIDER=ollama` + `OLLAMA_BASE_URL` (can point at a remote box) | The dev/deploy host has ~960 MB RAM / 2 cores — cannot run an 8B local model. Groq's free tier is the PRD's own sanctioned fallback (§3). `src/config.py` keeps both paths first-class. |
 | 2 | Embeddings via `sentence-transformers` (`all-MiniLM-L6-v2`) | **Same model**, served through ChromaDB's bundled **ONNX** build (`onnxruntime`) instead of PyTorch | `sentence-transformers` + `torch` is ~1 GB installed and OOMs at query time in <1 GB RAM. ONNX MiniLM produces the same vectors at ~50 MB. `torch` removed from `requirements.txt`. |
-| 3 | LLM client via `langchain-ollama` / `langchain-groq` | `crewai.LLM` (litellm-backed), model string `groq/...` or `ollama/...` | Current CrewAI's native LLM class talks to both providers directly; the extra langchain client packages are redundant. |
+| 3 | LLM client via `langchain-ollama` / `langchain-groq` | `crewai.LLM`, model string `groq/...` or `ollama/...`; `crewai[litellm]` extra required | No separate langchain packages needed. Ollama routes through CrewAI's native OpenAI-compatible client; **Groq must route via LiteLLM** — CrewAI 1.x has no native Groq provider and its native OpenAI provider ignores a custom `base_url` (issue #5139). Also needs a `cache_breakpoint` monkeypatch (issue #5886). See `src/config.py` and the `crewai-groq-integration` project note. |
 | 4 | `get_technical_analysis(ticker, period)` ported "as-is" | Default `period` changed `"1mo"` → `"1y"`; trend label guarded when history < 200 days | Latent prototype bug: a 200-day SMA needs ~200 trading days; with 1 month of data every SMA/trend value is `NaN`/wrong. |
 | 5 | Tools return `pd.DataFrame` (as in prototype) | Tools return formatted `"key: value"` text | Current CrewAI feeds tool output to the LLM as text; a stringified DataFrame is noisier and drops column context. |
 | 6 | News: yfinance `.news` + Google News RSS backup | Implemented both — `fetch_stock_news_raw` tries yfinance, falls back to RSS via `feedparser` | yfinance `.news` schema is unstable and has no SLA (§3); the fallback keeps ingest working. |
 | 7 | Ticker CSV seeded from prototype's ~50 names | Same 50, `aliases` column (`;`-separated). No `HDFC` row (only `HDFCBANK`) | HDFC Ltd merged into HDFC Bank in 2023 and is delisted, so `"HDFC"` correctly resolves to `HDFCBANK.NS`. Eval q3 expects this. |
-| 8 | `resolve_ticker` — "top-1 nearest neighbor" | Adds a cosine-similarity floor (`MATCH_THRESHOLD`, currently 0.42) below which it returns `TICKER_NOT_FOUND` | Makes DoD "fails gracefully" / rubric criterion 4 actually true — a not-in-store company must not get a low-confidence guess. Threshold tuned against the 50-ticker seed store. |
+| 8 | `resolve_ticker` — "top-1 nearest neighbor" | Cosine-similarity floor (`MATCH_THRESHOLD` 0.42); below `STRONG_MATCH_SIMILARITY` (0.75) it also requires a lexical anchor — a query word (≥3 chars, minus stopwords) must appear in the matched name/aliases | Makes DoD "fails gracefully" / rubric criterion 4 actually true. MiniLM matched short OOV tokens on shared subwords (`"Xyzcorp"` → `"Hero MotoCorp"` at 0.55); the lexical anchor blocks that without rejecting legit short queries like `"TCS"` (0.59). |
+| 9 | Single 4-agent sequential crew (resolve → analyse → news → write) | **Two crews**: a 1-agent resolver, then — only on a confirmed ticker — a 3-agent analysis crew. Out-of-coverage returns a fixed refusal, no analysis agents run. | A small local model (Groq gpt-oss / Ollama qwen2.5:7b) ignores "pass the not-found note through" and analyses the company from parametric knowledge anyway (writes a full Tesla report), or a downstream agent loops to `max_iter` and crashes the run. Gating in code is the only reliable fix. |
+| 10 | Judge scores every rubric criterion | `graceful_failure` and `ticker_accuracy` for out-of-universe queries are scored **deterministically** in `run_eval.py` (does the report contain the coverage-refusal language), not by the judge | The judge returned `null` / faithfulness 5 for reports that analysed the wrong company. The safety criteria must not depend on judge leniency. |
+| 11 | `retrieve_knowledge` returns top-k passages | Drops hits below `KNOWLEDGE_MIN_RELEVANCE` (0.30 cosine); if none survive, returns "evidence unavailable" | The thin seed store returns top-k hits at ~0.1 similarity (unrelated articles). Handing those to a small model as "the news" stalls it trying to relate an unrelated article to the question. |
+| 12 | `max_iter` left at CrewAI default (25) | `AGENT_MAX_ITER` (8) on every agent; `Crew(max_rpm=…)` Groq-only; optional `AGENT_MAX_EXECUTION_TIME` wall-clock ceiling | 25 tool-loop iterations per agent × rate-limit backoff = runs that appear hung for many minutes. |
 
-**Deferred (skeleton only, unchanged from PRD intent):** Phase 4 FastAPI/Streamlit wiring, Phase 5 n8n, Phase 6 OpenClaw (skill schema still unverified — see `automation/openclaw/finsight_skill/README.md`).
+**Deferred (skeleton only, unchanged from PRD intent):** Phase 5 n8n, Phase 6 OpenClaw (skill schema still unverified — see `automation/openclaw/finsight_skill/README.md`).
+
+**Phase 4 (done):** `src/api.py` exposes `POST /research` (query → report + `ticker` / `in_coverage` / `provider` / `model` / `elapsed_seconds`) and `GET /health`; `app/streamlit_app.py` is a thin UI that calls the API, never the crew. `src/crew.py::research()` returns the structured `ResearchResult`; `run_research()` is the report-string wrapper kept for the CLI and eval.
