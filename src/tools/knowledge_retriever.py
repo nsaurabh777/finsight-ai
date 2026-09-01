@@ -4,6 +4,8 @@ src/rag/ingest_news.py). Agents call this instead of reading a raw dumped
 news list, so qualitative claims in the final report are retrieval-grounded
 and citable back to a source URL.
 """
+import os
+
 from src.rag.text_utils import clean_passage
 from src.rag.vectorstore import VectorStore
 
@@ -13,6 +15,13 @@ except ImportError:
     from crewai_tools import tool
 
 COLLECTION = "knowledge"
+
+# Cosine similarity below which a hit is noise, not grounding. The seed news
+# store is small and a query with no genuinely relevant article still returns
+# top_k hits — at similarities around 0.1. Handing those to a small local model
+# as "the news" makes it stall trying to relate an unrelated article to the
+# question. Below this we report the evidence as unavailable instead.
+MIN_RELEVANCE = float(os.getenv("KNOWLEDGE_MIN_RELEVANCE", "0.30"))
 
 _store: VectorStore | None = None
 
@@ -39,8 +48,13 @@ def retrieve(query: str, ticker: str, top_k: int = 4) -> str:
             "`python -m src.rag.ingest_news --tickers <TICKER>` first."
         )
     results = store.query(query, top_k=top_k, where={"ticker": ticker})
+    results = [r for r in results if r["similarity"] >= MIN_RELEVANCE]
     if not results:
-        return f"No grounding passages found for ticker={ticker!r}, query={query!r}."
+        return (
+            f"No sufficiently relevant grounding passages for ticker={ticker!r} "
+            f"and query={query!r}. Treat the news evidence as unavailable — do "
+            f"not summarise unrelated articles."
+        )
 
     lines = []
     for r in results:
