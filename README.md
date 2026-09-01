@@ -24,6 +24,20 @@ python -m src.rag.ingest_news --tickers KPITTECH.NS,RELIANCE.NS
 python -m src.crew "Is KPIT Technologies a good long-term stock?"
 ```
 
+### API + web UI (Phase 4)
+
+```bash
+# terminal 1 — the backend (all interfaces call this, never the crew directly)
+uvicorn src.api:app --port 8000
+#   POST /research  {"query": "..."}  -> {report, ticker, in_coverage, elapsed_seconds, ...}
+#   GET  /health
+
+# terminal 2 — the demo UI
+streamlit run app/streamlit_app.py
+```
+
+Point the UI at a non-local API with `FINSIGHT_API_URL` in `.env`.
+
 ### Choosing an LLM (`.env`)
 
 | `LLM_PROVIDER` | Needs | When |
@@ -71,7 +85,7 @@ now. Same backend (`src/api.py` → `src/crew.py`), two different triggers.
 | 1 | Core CrewAI pipeline + yfinance tools | ✅ implemented |
 | 2 | RAG: ticker resolver + knowledge/news store | ✅ implemented |
 | 3 | LLM-as-judge eval harness | ✅ baseline captured (below) |
-| 4 | FastAPI + Streamlit | 🟡 skeleton |
+| 4 | FastAPI + Streamlit | ✅ implemented |
 | 5 | n8n scheduled brief | 🟡 skeleton |
 | 6 | OpenClaw on-demand chat | 🟡 skeleton (schema unverified) |
 | 7 | Polish, Docker Compose | ⬜ not started |

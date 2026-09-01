@@ -82,6 +82,18 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 # --- API server -------------------------------------------------------
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
+# Where the Streamlit app (and any other client) reaches the FastAPI service.
+API_URL = os.getenv("FINSIGHT_API_URL", f"http://localhost:{API_PORT}")
+
+
+def active_model_name() -> str:
+    """Human-readable 'provider/model' for the currently selected LLM — surfaced
+    in the API response and the Streamlit sidebar."""
+    if LLM_PROVIDER == "groq":
+        return f"groq/{GROQ_MODEL}"
+    if LLM_PROVIDER == "ollama":
+        return f"ollama/{OLLAMA_MODEL}"
+    return LLM_PROVIDER
 
 # --- Delivery channels for automation (optional) ---------------------
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")

@@ -21,6 +21,7 @@ CLI usage:
 """
 import re
 import sys
+from dataclasses import dataclass
 
 from crewai import Crew, Process, Task
 
@@ -172,8 +173,19 @@ def _not_in_coverage_report(query: str) -> str:
     )
 
 
-def run_research(query: str) -> str:
-    """Run the full pipeline and return the final markdown report.
+@dataclass
+class ResearchResult:
+    """Structured pipeline output. api.py returns this as JSON; run_research()
+    unwraps it to the report string for the CLI and eval harness."""
+
+    query: str
+    report: str
+    ticker: str | None       # resolved '.NS' symbol, or None if out of coverage
+    in_coverage: bool
+
+
+def research(query: str) -> ResearchResult:
+    """Run the full pipeline and return the report plus resolution metadata.
 
     Safety nets (PRD Section 10): a not-in-coverage company returns a fixed
     refusal without ever invoking the analysis agents; the disclaimer is
@@ -181,13 +193,18 @@ def run_research(query: str) -> str:
     """
     ticker = resolve_company(query)
     if ticker is None:
-        return _not_in_coverage_report(query)
+        return ResearchResult(query, _not_in_coverage_report(query), None, False)
 
     result = build_analysis_crew().kickoff(inputs={"query": query, "ticker": ticker})
     report = str(result).strip()
     if "not financial advice" not in report.lower():
         report += DISCLAIMER
-    return report
+    return ResearchResult(query, report, ticker, True)
+
+
+def run_research(query: str) -> str:
+    """Report-string-only wrapper over research(), for the CLI and eval."""
+    return research(query).report
 
 
 if __name__ == "__main__":
