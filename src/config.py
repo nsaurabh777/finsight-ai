@@ -66,6 +66,24 @@ DISCLAIMER = (
 )
 
 
+def _disable_cache_breakpoints() -> None:
+    """Stop CrewAI from tagging messages with a ``cache_breakpoint`` flag.
+
+    CrewAI's agent executors mark stable messages for Anthropic-style prompt
+    caching, but its LiteLLM path forwards that key verbatim in the request
+    body. Groq (and other OpenAI-compatible APIs) reject the unknown property
+    with a 400 (crewAI issue #5886). The executors re-import this function on
+    every call, so neutralising it here is enough; the only effect is that we
+    forgo prompt-cache discounts, which Groq/Ollama don't offer anyway.
+    """
+    try:
+        import crewai.llms.cache as _cache
+
+        _cache.mark_cache_breakpoint = lambda message: message
+    except Exception:  # pragma: no cover - future CrewAI may drop this module
+        pass
+
+
 def _build_llm(provider: str):
     """Return a crewai.LLM configured for `provider`.
 
@@ -74,6 +92,8 @@ def _build_llm(provider: str):
       - Groq    -> via LiteLLM, model "groq/<name>" (needs crewai[litellm])
     """
     from crewai import LLM
+
+    _disable_cache_breakpoints()
 
     if provider == "groq":
         if not GROQ_API_KEY:
