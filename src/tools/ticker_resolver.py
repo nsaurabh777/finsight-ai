@@ -9,6 +9,8 @@ handing back a low-confidence guess. The agent prompts instruct the crew to
 stop and report "not found" rather than hallucinate analysis on a wrong or
 nonexistent security.
 """
+import re
+
 from src.rag.vectorstore import VectorStore
 
 try:
@@ -18,8 +20,27 @@ except ImportError:  # older crewai packaging
 
 # Cosine similarity below which we treat the lookup as a miss. Tuned against
 # the 50-ticker seed store: real name/alias matches score ~0.55-0.95, while
-# companies not in the store (e.g. "Zomato", "Xyzcorp") score well under 0.4.
+# most companies not in the store score under 0.4.
 MATCH_THRESHOLD = 0.42
+
+# MiniLM embeddings of a short out-of-vocabulary token latch onto its subwords
+# (e.g. "Xyzcorp" -> "Hero MotoCorp" at 0.55, well above MATCH_THRESHOLD — it
+# shares the "corp" subword). A pure similarity threshold can't catch that
+# without also rejecting legit short queries like "TCS" (0.59). So below this
+# similarity we additionally require a lexical anchor: at least one word from
+# the query (>=3 chars) must literally appear in the matched name/aliases.
+# Above it we trust the vector match outright.
+STRONG_MATCH_SIMILARITY = 0.75
+
+# Generic words that are no evidence of a real match if they're the only
+# lexical overlap — "a company called Xyzcorp" must not anchor to "Titan
+# Company" on the word "company".
+_ANCHOR_STOPWORDS = frozenset({
+    "company", "companies", "corp", "corporation", "limited", "ltd", "inc",
+    "industries", "enterprises", "group", "holdings", "the", "and", "for",
+    "stock", "stocks", "share", "shares", "invest", "investing", "buy",
+    "sell", "good", "called", "about", "some", "any",
+})
 
 NOT_FOUND_PREFIX = "TICKER_NOT_FOUND"
 
@@ -46,7 +67,21 @@ def resolve(company_query: str) -> str:
     best = results[0]
     if best["similarity"] < MATCH_THRESHOLD:
         return f"{NOT_FOUND_PREFIX}: {company_query}"
+    if best["similarity"] < STRONG_MATCH_SIMILARITY and not _has_lexical_anchor(
+        company_query, best["document"]
+    ):
+        return f"{NOT_FOUND_PREFIX}: {company_query}"
     return best["metadata"]["ticker"]
+
+
+def _has_lexical_anchor(query: str, document: str) -> bool:
+    """True if any >=3-char alphanumeric token from the query appears verbatim
+    in the matched document (company name + aliases). Guards against MiniLM
+    matching a nonexistent company to a real one purely on shared subwords."""
+    doc = document.lower()
+    tokens = [t for t in re.findall(r"[a-z0-9]{3,}", query.lower())
+              if t not in _ANCHOR_STOPWORDS]
+    return any(tok in doc for tok in tokens)
 
 
 @tool("resolve_ticker")

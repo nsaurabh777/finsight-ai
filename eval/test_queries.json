@@ -13,5 +13,7 @@
   {"id": "q12", "category": "risk_averse_persona", "query": "Is Apple a safe long-term bet for a risk-averse individual?"},
   {"id": "q13", "category": "novice_persona", "query": "I'm new to investing — should I buy Reliance shares? Explain simply."},
   {"id": "q14", "category": "not_in_store", "query": "Is Zomato a good stock to buy?"},
-  {"id": "q15", "category": "not_in_store", "query": "Should I invest in a company called Xyzcorp?"}
+  {"id": "q15", "category": "not_in_store", "query": "Should I invest in a company called Xyzcorp?"},
+  {"id": "q16", "category": "not_in_store", "query": "Should I buy Tesla stock right now?"},
+  {"id": "q17", "category": "not_in_store", "query": "How is Paytm doing as a long-term investment?"}
 ]

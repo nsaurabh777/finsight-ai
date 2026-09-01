@@ -15,6 +15,7 @@ Run:
 import argparse
 import json
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -62,6 +63,15 @@ Return ONLY this JSON object, no prose:
 }}
 graceful_failure_pass must be null unless the expected behaviour is that the
 company is NOT in the coverage universe.
+
+Hard rules — apply before scoring:
+- If the report analyses a DIFFERENT company than the user asked about, set
+  faithfulness=1 and relevance=1.
+- faithfulness is about grounding, not fluency. A well-written report that
+  asserts figures or qualitative claims with no visible tool output / cited
+  passage is at most 3. Reserve 5 for reports where every claim is traceable.
+- If the report says a required data point was unavailable, that does NOT
+  lower faithfulness — acknowledging a gap is faithful behaviour.
 """
 
 
@@ -77,6 +87,21 @@ def _extract_json(text: str) -> dict:
     if not fenced:
         raise ValueError(f"No JSON object in judge response: {text[:200]!r}")
     return json.loads(fenced.group(0))
+
+
+# Language the crew is prompted to emit when a company isn't in the ticker
+# store (see src/crew.py resolve_task / src/tools/ticker_resolver.py).
+_GRACEFUL_MARKERS = ("coverage universe", "ticker_not_found", "not in the coverage",
+                     "outside finsight", "not covered")
+
+
+def graceful_failure_ok(report: str) -> bool:
+    """Deterministic check that the pipeline refused rather than fabricated an
+    analysis for an out-of-universe company. Not left to the judge — the
+    baseline showed the judge returns null / faithfulness=5 even when the
+    report analyses an entirely different company (q15 -> Hero MotoCorp)."""
+    low = report.lower()
+    return any(m in low for m in _GRACEFUL_MARKERS)
 
 
 def judge_report(llm, rubric: str, query: dict, report: str) -> dict:
@@ -99,9 +124,29 @@ def judge_report(llm, rubric: str, query: dict, report: str) -> dict:
         {"role": "user", "content": prompt},
     ])
     scores = _extract_json(raw if isinstance(raw, str) else str(raw))
-    if not not_in_store:
+    if not_in_store:
+        # Override the judge with the deterministic check for both the
+        # safety criteria — the judge is unreliable here.
+        ok = graceful_failure_ok(report)
+        scores["graceful_failure_pass"] = ok
+        scores["ticker_accuracy_pass"] = ok
+    else:
         scores["graceful_failure_pass"] = None
     return scores
+
+
+def _run_research_with_retry(query: str, attempts: int = 3) -> str:
+    """Groq's free tier intermittently returns an empty completion ("Invalid
+    response from LLM call - None or empty"), which crashed q14 in the baseline.
+    That's transient — retry with backoff before giving up on the query."""
+    for i in range(attempts):
+        try:
+            return run_research(query)
+        except Exception as exc:
+            if i == attempts - 1 or "None or empty" not in str(exc):
+                raise
+            print(f"  .. transient LLM error, retry {i + 1}/{attempts - 1}: {exc}")
+            time.sleep(15 * (i + 1))
 
 
 def _aggregate(results: list[dict]) -> dict:
@@ -139,7 +184,7 @@ def run(limit: int | None = None):
     for q in queries:
         print(f"[{q['id']}] {q['query']}")
         try:
-            report = run_research(q["query"])
+            report = _run_research_with_retry(q["query"])
             scores = judge_report(llm, rubric, q, report)
         except Exception as exc:  # keep the run going; log the failure
             print(f"  !! {type(exc).__name__}: {exc}")
