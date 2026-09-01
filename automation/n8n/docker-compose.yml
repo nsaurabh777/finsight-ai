@@ -22,6 +22,9 @@ services:
     environment:
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Asia/Kolkata}
       - TZ=${GENERIC_TIMEZONE:-Asia/Kolkata}
+      # n8n blocks $env access inside nodes/expressions by default; the
+      # daily-brief workflow needs it to read the vars below.
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       # Consumed by the daily-brief workflow (n8n exposes these as $env.*):
       - FINSIGHT_API_URL=${FINSIGHT_API_URL:-http://host.docker.internal:8000}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}

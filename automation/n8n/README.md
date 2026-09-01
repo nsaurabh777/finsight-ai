@@ -54,6 +54,9 @@ Change the schedule by editing the **Weekday 8am** node's cron expression.
 
 ## Notes
 
+- The workflow reads config from `$env.*`, which n8n blocks inside nodes by
+  default. `docker-compose.yml` sets `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`; for
+  `npx n8n` export it yourself (`export N8N_BLOCK_ENV_ACCESS_IN_NODE=false`).
 - The workflow file is hand-authored, not exported from a running instance —
   n8n may upgrade stale node `typeVersion`s on import; let it.
 - A `/research` call that fails (`502`, timeout) doesn't abort the brief — that
